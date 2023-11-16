@@ -9,7 +9,7 @@ class Block:
     # Draw the block on a canvas object
     def draw_block(self, canvas):
         # Draw the block
-        canvas.create_rectangle(self.x, self.y, self.x + self.length, self.y + self.length, width=2)
+        canvas.create_rectangle(self.x, self.y, self.x + self.length, self.y + self.length, width=2, fill="green")
         # Draw the letter in the block
         canvas.create_text(self.x + self.length / 2, self.y + self.length / 2, text=self.lb, font=('Helvetica','22','bold'))
 
