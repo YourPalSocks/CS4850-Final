@@ -12,3 +12,9 @@ class Cmd_Window(scrolledtext.ScrolledText):
         self.config(state='normal')
         self.delete('1.0', tk.END)
         self.config(state='disabled')
+
+    def log(self, txt):
+        self.configure(state='normal')
+        self.insert(tk.END, txt + "\n")
+        self.see(tk.END)
+        self.configure(state='disabled')
