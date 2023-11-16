@@ -6,6 +6,8 @@ from cmd_window import Cmd_Window
 
 state_man = State_Manager()
 state = 1
+max_states = 1
+compute_time = 0.0
 
 # Global components
 cmd_win = ""
@@ -13,10 +15,12 @@ tab = ""
 blocks = []
 claw = ""
 canvas = ""
+state_lab = ""
 
 def main():
     global cmd_win
     global canvas
+    global state_lab
 
     root = Tk()
     root.title("CS4850 Final Project - Ethan Heinlein")
@@ -27,13 +31,13 @@ def main():
     # Add component frames
     disp_frame = Frame(root) # Frame used for canvas and stats area
     disp_frame.pack(side=TOP)
-    state_num = Label(root, borderwidth=2, text="1/n")
-    state_num.pack(side=TOP)
+    state_lab = Label(root, borderwidth=2, text=f"{state}/{max_states}")
+    state_lab.pack(side=TOP)
     # Add components
     canvas = Canvas(disp_frame, bg="white", height=300, width=600)
     setup_canvas()
     canvas.pack()
-    stats = Label(disp_frame, borderwidth=2, text="Steps: 0\t\tTime: 0.0s")
+    stats = Label(disp_frame, borderwidth=2, text=f"# States: {max_states}\t\tTime: {compute_time}s")
     stats.pack()
     # Text area for information
     cmd_win = Cmd_Window(root)
@@ -53,6 +57,7 @@ def setup_canvas():
     global tab
     global blocks
     global canvas
+
     # Table object
     tab = Table()
     # Blocks
@@ -68,6 +73,7 @@ def setup_canvas():
 
 def parse_command(win, c_in):
     global state
+
     # Get command (and argument) from input, then clear it
     cmd = c_in.get('1.0', 'end-1c').replace('\n', '')
     arg = ""
