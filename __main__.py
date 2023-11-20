@@ -4,7 +4,7 @@ from table import Table
 from state_manager import State_Manager
 from cmd_window import Cmd_Window
 
-state_man = State_Manager()
+state_man = State_Manager(0, 0, 0, 0)
 state = 1
 max_states = 1
 compute_time = 0.0
@@ -12,7 +12,7 @@ compute_time = 0.0
 # Global components
 cmd_win = ""
 tab = ""
-blocks = []
+blocks = {}
 claw = ""
 canvas = ""
 state_lab = ""
@@ -57,19 +57,21 @@ def setup_canvas():
     global tab
     global blocks
     global canvas
+    global state_man
+    global claw
 
     # Table object
     tab = Table()
     # Blocks
-    a = Block(25,25,"a")
-    a.move_block(300, 150)
-    # Add block to blocks
-    blocks.append(a)
+    for c in range(ord('a'), ord('n') + 1):
+        blocks.update({chr(c) : Block(25, 25, chr(c))})
 
     # Draw everything
     tab.draw_table(canvas)
-    a.draw_block(canvas)
-    pass
+    for block in blocks:
+        blocks[block].draw_block(canvas)
+    # Give to state manager
+    state_man = State_Manager(blocks, tab, claw, canvas)
 
 def parse_command(win, c_in):
     global state
@@ -86,6 +88,7 @@ def parse_command(win, c_in):
     cmd_win.log(f"> {cmd}")
     # Process the command
     if cmd == "clear": # Clear command window and last run
+        state_man.reset_states()
         win.do_clear()
     elif cmd == "next":
         state += 1
@@ -99,23 +102,21 @@ def parse_command(win, c_in):
         if(not arg):
             cmd_win.log("ERROR: intial state must be non-null")
             return
-        cmd_win.log(arg)
+        state_man.create_initial_state(arg)
     elif cmd == "final":
-        pass
+        if(not arg):
+            cmd_win.log("ERROR: final state must be non-null")
+            return
+        state_man.create_final_state(arg)
     elif cmd == "run":
-        pass
+        if(state_man.get_state_num() < 2):
+            cmd_win.log("ERROR: initial and final states must be set before running")
+            return
+        # TODO: Run the simulation
     elif cmd == "help":
-        cmd_win.log("""
-initial <arg> -- Set the initial state of the blocks.
-final   <arg> -- Set the final state of the blocks.
-next          -- View the next state.
-prev          -- View the previous state.
-run           -- Run the AI simulation.
-clear         -- Clear the Command Window and the last run.
-            """)
+        cmd_win.do_help()
     else:
         cmd_win.log("ERROR: unknown command")
-
 
 
 if __name__ == "__main__":
