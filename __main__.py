@@ -1,6 +1,7 @@
 from tkinter import *
 from block import Block
 from table import Table
+from claw import Claw
 from state_manager import State_Manager
 from cmd_window import Cmd_Window
 
@@ -50,6 +51,9 @@ def main():
                 lambda event, win=cmd_win, c_in=cmd_in:parse_command(win,c_in))
     cmd_win.log("Enter 'help' to view available commands")
 
+    # Give focus to command area
+    cmd_in.focus_set()
+
     # Star the main loop
     root.mainloop()
 
@@ -65,6 +69,9 @@ def setup_canvas():
     # Blocks
     for c in range(ord('a'), ord('n') + 1):
         blocks.update({chr(c) : Block(25, 25, chr(c))})
+    # Claw
+    claw = Claw()
+    claw.draw_claw(canvas)
 
     # Draw everything
     tab.draw_table(canvas)

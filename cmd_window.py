@@ -22,7 +22,7 @@ prev          -- View the previous state.
 run           -- Run the AI simulation.
 clear         -- Clear the Command Window and the last run. 
                  
-State format: <blocks in 1>-<blocks in 2>-<blocks in 3> (blocks seperated by commas)""")
+State format: <blocks in 1>-<blocks in 2>-<blocks in 3>""")
 
     def log(self, txt):
         self.configure(state='normal')

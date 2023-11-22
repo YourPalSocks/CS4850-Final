@@ -1,11 +1,14 @@
 from block import Block
 from table import Table
+from claw import Claw
+from solver import Solver
 
 class State_Manager:
     # State format: <blocks in 1>-<blocks in 2>-<blocks in 3> (blocks seperated by commas)
 
     # Snapshots of each state
     states = []
+    solver = ""
 
     def __init__(self, blocks, table, claw, canvas):
         self.initial_state = ""
@@ -15,6 +18,8 @@ class State_Manager:
         self.table = table
         self.claw = claw
         self.canvas = canvas
+        # Solver
+        self.solver = Solver(self)
 
     def create_initial_state(self, init):
         # Set to first state
@@ -22,10 +27,15 @@ class State_Manager:
         self.states.append(init)
         # Create the first state on screen
         self.create_state(0)
+        # Give to solver
+        self.solver.add_initial(init)
+        
     
     def create_final_state(self, fin):
         # Set to final state
         self.states.append(fin)
+        # Give to solver
+        self.solver.add_final(fin)
 
     def get_state_num(self):
         return len(self.states)
@@ -37,8 +47,9 @@ class State_Manager:
         try:
             cur_spot = 1
             for spot in self.states[state_num].split('-'):
-                for block in spot.split(','):
+                for block in list(spot):
                     pos = self.table.get_table_position(cur_spot)
+                    # TODO: Check if claw is holding this block
                     self.blocks.get(str(block)).move_block(pos[0], pos[1])
                     self.blocks.get(str(block)).draw_block(self.canvas)
                 cur_spot += 1
