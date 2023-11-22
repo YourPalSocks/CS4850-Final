@@ -4,7 +4,7 @@ from claw import Claw
 from solver import Solver
 
 class State_Manager:
-    # State format: <blocks in 1>-<blocks in 2>-<blocks in 3> (blocks seperated by commas)
+    # State format: <blocks in 1>-<blocks in 2>-<blocks in 3>
 
     # Snapshots of each state
     states = []
