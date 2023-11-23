@@ -49,7 +49,6 @@ class State_Manager:
             for spot in self.states[state_num].split('-'):
                 for block in list(spot):
                     pos = self.table.get_table_position(cur_spot)
-                    # TODO: Check if claw is holding this block
                     self.blocks.get(str(block)).move_block(pos[0], pos[1])
                     self.blocks.get(str(block)).draw_block(self.canvas)
                 cur_spot += 1
