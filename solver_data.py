@@ -58,9 +58,6 @@ class Table_State:
         else:
             return self.L3
         
-    def get_stack_number(self, num : int):
-        return len(self.get_stack(num))
-        
 
 # Used to store actions FIFO order
 class Queue:
@@ -71,7 +68,7 @@ class Queue:
         self.__items.append(item)
 
     def dequeue(self):
-        return self.__items.pop()
+        return self.__items.pop(0)
     
     def size(self):
         return len(self.__items)
@@ -114,23 +111,11 @@ class StateTree:
         # Create root of tree, move pointer to root
         self.root = Node(data, 0)
         self.pointer = self.root
-        self.pointer_depth = 0
+        self.depth = 0
         self.goal_pointer = False # Which node is the goal state? For uptracing later
 
     def is_root(self):
-        return self.pointer_depth == 0
+        return self.depth == 0
 
     def add(self, n_data): # Add new node to pointer location
         return self.pointer.add_child(Node(n_data, self.pointer))
-    
-    def move_pointer(self, loc : int):
-        try:
-            if loc == -1 and self.pointer != self.root:
-                self.pointer = self.pointer
-                self.pointer_depth -= 1
-            else:
-                self.pointer = self.pointer.get_children()[loc]
-                self.pointer_depth += 1
-            return 0
-        except IndexError:
-            return -1

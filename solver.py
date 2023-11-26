@@ -15,18 +15,19 @@ class Solver:
     final_state = {}
 
     def __init__(self, init : str, fin : str):
-        self.add_initial(init)
-        self.add_final(fin)
+        # Add initial and final states
+        self.__add_state(init, True)
+        self.__add_state(fin, False)
 
-    def add_initial(self, init : str):
+    def __add_state(self, state_str : str, initflag : bool):
         temp_table = {
             "L1" : [],
             "L2" : [],
             "L3" : []
         }
-        for blocks in init.split('-'):
+        spot = 1
+        for blocks in state_str.split('-'):
             index = 0
-            spot = 1
             above_blocks = []
             for b in list(blocks): # Building bottom-up
                 # Fill out block properties
@@ -36,57 +37,19 @@ class Solver:
                 index += 1
             spot += 1
 
-        # Build list of above blocks
-        for spot in range(1,4):
-            block_num = len(temp_table["L" + str(spot)])
-            for i in range(block_num - 1, 0, -1): # Start top -> down
-                above_blocks = []
-                for j in range(i, block_num):
-                    above_blocks.append(temp_table["L" + str(spot)][j])
-                temp_table["L" + str(spot)][i].above = above_blocks
-
         # Create initial state as data structure
-        self.initial_state["Arm"] = Arm_State()
-        self.initial_state["Table"] = Table_State()
-        self.initial_state["Table"].L1 = temp_table["L1"]
-        self.initial_state["Table"].L2 = temp_table["L2"]
-        self.initial_state["Table"].L3 = temp_table["L3"]
-        # Clone to current
-        self.state_count += 1
-
-    def add_final(self, fin : str):
-        temp_table = {
-            "L1" : [],
-            "L2" : [],
-            "L3" : []
-        }
-        for blocks in fin.split('-'):
-            index = 0
-            spot = 1
-            above_blocks = []
-            for b in list(blocks): # Building bottom-up
-                # Fill out block properties
-                block = Block_State(above_blocks, index == len(list(blocks)) - 1, index == 0, b) # Come back for above
-                temp_table["L" + str(spot)].append(block)
-                above_blocks.append(block)
-                index += 1
-            spot += 1
-
-        # Build list of above blocks
-        for spot in range(1,4):
-            block_num = len(temp_table["L" + str(spot)])
-            for i in range(block_num - 1, 0, -1): # Start top -> down
-                above_blocks = []
-                for j in range(i, block_num):
-                    above_blocks.append(temp_table["L" + str(spot)][j])
-                temp_table["L" + str(spot)][i].above = above_blocks
-
-        # Create initial state as data structure
-        self.final_state["Arm"] = Arm_State()
-        self.final_state["Table"] = Table_State()
-        self.final_state["Table"].L1 = temp_table["L1"]
-        self.final_state["Table"].L2 = temp_table["L2"]
-        self.final_state["Table"].L3 = temp_table["L3"]
+        if initflag:
+            self.initial_state["Arm"] = Arm_State()
+            self.initial_state["Table"] = Table_State()
+            self.initial_state["Table"].L1 = temp_table["L1"]
+            self.initial_state["Table"].L2 = temp_table["L2"]
+            self.initial_state["Table"].L3 = temp_table["L3"]
+        else:
+            self.final_state["Arm"] = Arm_State()
+            self.final_state["Table"] = Table_State()
+            self.final_state["Table"].L1 = temp_table["L1"]
+            self.final_state["Table"].L2 = temp_table["L2"]
+            self.final_state["Table"].L3 = temp_table["L3"]
         # Clone to current
         self.state_count += 1
 
@@ -97,23 +60,36 @@ class Solver:
         # Queue up initial set of actions
         st = StateTree(self.initial_state)
         action_queue = Queue()
-        self.get_all_actions(self.initial_state, action_queue)
-        st.pointer.viewed = True
-        while(action_queue.size() > 0):
-            print(action_queue.size(), flush=True)
-            if(st.pointer_depth >= Solver.MAX_DEPTH):
-                # Move pointer to parent, if possible
-                if not st.is_root():
-                    st.pointer = st.pointer.parent
-                # Find adjacent node, if applicable or stay at parent
-                adj_node = st.pointer.get_unviewed_child()
-                if adj_node != -1:
-                    st.pointer = adj_node
+        first = True
+        while(action_queue.size() > 0 or first):
+            # Handle depth limit reached
+            first = False # Creating a do-while loop essentially
+            if st.depth >= self.MAX_DEPTH:
+                # Mark as true so can't be processed
+                st.pointer.viewed = True
+                # Keep moving up, finding unviewed sibling
+                found = -1
+                search_node = st.pointer
+                while found != -1:
+                    found = -1
+                    if search_node.parent == 0 or search_node == 0: # Reached the root, stop searching
+                        break
+                    else:
+                        found = search_node.parent.get_unviewed_child()
+                        if found == -1:
+                            search_node = search_node.parent
+                        pass
             # Get all actions of this state, if not done so already
             if not st.pointer.viewed:
+                # Add all possible states
+                self.get_all_actions(st.pointer.get_data(), action_queue)
+                st.pointer.viewed = True
                 # Add each action to tree, check if goal
-                for i in range(0, action_queue.size() - 1):
-                    action = action_queue.dequeue()
+                action_size = action_queue.size()
+                for i in range(0, action_size):
+                    action_info = action_queue.dequeue()
+                    action = action_info[1]
+                    print(action_info[0], flush=True)
                     index = st.add(action) # Add new action to StateTree
                     # Check if this is the goal
                     if self.is_goal(action):
@@ -121,24 +97,23 @@ class Solver:
                         st.goal_pointer = st.pointer.get_child(index)
                         action_queue.clear()
                         break
-            # Move down tree
-            result = st.pointer.get_unviewed_child()
-            # Queue up next set of actions, if possible
-            if result != -1:
-                st.pointer = result
-                self.get_all_actions(st.pointer.get_data(), action_queue)
-                st.pointer.viewed = True
-            elif st.pointer.parent != 0: # All children cleared, queue up sibling of this node, if possible
-                result = st.pointer.parent.get_unviewed_child()
-                if result != -1:
-                    st.pointer = result
-                    self.get_all_actions(st.pointer.get_data(), action_queue)
-                    st.pointer.viewed = True
+            # Move to next node (try children of pointer, then sibling)
+            next = st.pointer.get_unviewed_child()
+            if next != -1: # Found, move to child
+                st.pointer = next
+                st.pointer_depth += 1
+                pass
+            else: # Failed, try sibling node
+                if st.pointer.parent != 0: # Exclude root node
+                    next = st.pointer.parent.get_unviewed_child()
+                    if next != -1: # Found a sibling to try
+                        st.pointer = next
         # Get time of end
         end_time = time.time()
         # Get final stats
-        fin_time = abs(start_time - end_time) # Run time
-        return fin_time
+        results = {}
+        results["Time"] = abs(start_time - end_time) # Run time
+        return results
 
     # Actions
     def can_stack(self, state):
@@ -156,15 +131,18 @@ class Solver:
         block = state["Arm"].get_held()
         pos = state["Arm"].get_location()
         stack = state["Table"].get_stack(pos)
+        action_str = ""
         if self.can_stack(state): # PRECONDITIONS
             state["Arm"].let_go()
-            # Adjust block properties
+            action_str = "S(" + block.label + ", " + stack[-1].label + ", " + "L" + str(pos) + ")"
+            # Adjust block properties 
             block.above.append(stack[-1])
             block.above.append(stack[-1].above)
             block.clear = True
             stack[-1].clear = False
             stack.append(block) # Add block to top of stack
-        return state
+        # Build action string
+        return [action_str, state]
 
     def can_unstack(self, state):
         pos = state["Arm"].get_location()
@@ -179,8 +157,10 @@ class Solver:
         state = deepcopy(s)
         pos = state["Arm"].get_location()
         stack = state["Table"].get_stack(pos)
+        action_str = ""
         if self.can_unstack(state): # PRECONDITIONS
             block = stack.pop() # Remove block from stack
+            action_str = "U(" + block.label + ", " + stack[-1].label + ", " + "L" + str(pos) + ")"
             # Adjust block properties
             block.clear = False
             block.above = []
@@ -188,7 +168,7 @@ class Solver:
             stack[-1].clear = True
             # Give block to arm
             state["Arm"].grab(block)
-        return state
+        return [action_str, state]
     
     def can_pickup(self, state):
         pos = state["Arm"].get_location()
@@ -203,15 +183,17 @@ class Solver:
         state = deepcopy(s)
         pos = state["Arm"].get_location()
         stack = state["Table"].get_stack(pos)
+        action_str = ""
         if self.can_pickup(state): # PRECONDITIONS
             block = stack.pop
+            action_str = "Pi(" + block.label + ", " + str(pos)  + ", " + "L" + str(pos) + ")"
             # Adjust block properties
             block.table = False
             block.clear = False
             block.above = []
             # Give to arm
             state["Arm"].grab(block)
-        return state
+        return [action_str, state]
     
     def can_putdown(self, state):
         pos = state["Arm"].get_location()
@@ -228,13 +210,15 @@ class Solver:
         pos = state["Arm"].get_location()
         block = state["Arm"].get_held()
         stack = state["Table"].get_stack(pos)
+        action_str = ""
         if self.can_putdown(state): # PRECONDITIONS
+            action_str = "Pu(" + block.label + ", " + "L" + str(pos) + ")"
             # Adjust block properties
             block.clear = True
             block.table = True
             state["Arm"].let_go()
             stack.append(block)
-        return state
+        return [action_str, state]
     
     def can_move(self, state, lk):
         pos = state["Arm"].get_location()
@@ -242,13 +226,15 @@ class Solver:
 
     def move(self, s, lk):
         '''
-        PRE:: Arm is at li ; Arm is holding something
+        PRE:: Arm is at li ; Arm is holding something; Arm is not at lk
         POST:: Arm is at lk
         '''
         state = deepcopy(s)
+        action_str = ""
         if self.can_move(state, lk): # PRECONDITIONS
+            action_str = "M(" + str(state["Arm"].get_location()) + ", " + str(lk) + ")"
             state["Arm"].move(lk)
-        return state
+        return [action_str, state]
 
     def noop(self):
         pass
@@ -263,27 +249,31 @@ class Solver:
             if(spot != final_spot):
                 return False
         return True
-    
-    def get_stack_name(self, num : int):
-        if(num > 0 and num < 4):
-            return "L" + str(num)
         
     # Get all possible actions of state and load into queue
     def get_all_actions(self, state, queue : Queue):
+        states_found = 0
         if self.can_unstack(state):
             queue.enqueue(self.unstack(state))
+            states_found+= 1
         if self.can_stack(state):
             queue.enqueue(self.stack(state))
+            states_found+= 1
         if self.can_move(state, 1):
             queue.enqueue(self.move(state, 1))
+            states_found+= 1
         if self.can_move(state, 2):
             queue.enqueue(self.move(state, 2))
+            states_found+= 1
         if self.can_move(state, 3):
             queue.enqueue(self.move(state, 3))
+            states_found+= 1
         if self.can_pickup(state):
             queue.enqueue(self.pickup(state))
+            states_found+= 1
         if self.can_putdown(state):
             queue.enqueue(self.putdown(state))
+            states_found+= 1
 
     def state_to_string(self, state):
         # TODO: Convert state to something readable by __main__.py
