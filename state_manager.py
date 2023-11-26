@@ -29,7 +29,6 @@ class State_Manager:
         self.create_state(0)
         # Give to solver
         self.solver.add_initial(init)
-        
     
     def create_final_state(self, fin):
         # Set to final state
