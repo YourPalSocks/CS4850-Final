@@ -97,12 +97,12 @@ class Solver:
 
     # Actions
     def stack(self, li):
-        flag = 0 # 0 on success, 1 on failure
         '''
         PRE:: Arm is holding x; CLEAR(y); y and x at same location
         POST:: ON(x, y); CLEAR(x); !CLEAR(y); ABOVE(x, y); ABOVE(x, y.above)
         '''
         block = self.current_state["Arm"].get_held()
+        action = ""
         if(block != False): # Make sure arm is holding something
             stack = self.current_state["Table"].get_stack(li)
             self.current_state["Arm"].let_go()
@@ -113,17 +113,18 @@ class Solver:
             block.clear = True
             stack[len(stack) - 1].clear = False
             stack.append(block) # Add block to top of stack
-        else:
-            flag = 1 # Something went wrong
-        return flag
+            # Create action string
+            action = "S(" + block.label + ", " + stack[len(stack) - 1] + ", " + \
+                self.get_stack_name(li) + ")"
+        return action
 
 
     def unstack(self, li):
-        flag = 0 # 0 on success, 1 on failure
         '''
         PRE:: Arm is empty; CLEAR(x); ON(x, y); !TABLE(x); !GOAL(x)
         POST:: Arm is holding x; !CLEAR(x); Nothing on x; x above == null
         '''
+        action = ""
         if(self.current_state["Arm"].get_held() == False):
             stack = self.current_state["Table"].get_stack(li)
             block = stack.pop() # Remove block from stack
@@ -135,16 +136,17 @@ class Solver:
             stack[len(stack)].clear = True
             # Give block to arm
             self.current_state["Arm"].grab(block)
-        else:
-            flag = 1
-        return flag
+            # Create action string
+            action = "U(" + block.label + ", " + stack[len(stack) - 1].label + ", " + \
+                self.get_stack_name(li) + ")"
+        return action
 
     def pickup(self, li):
-        flag = 0 # 0 on success, 1 on failure
         '''
         PRE:: Arm is empty; TABLE(x); CLEAR(x); !GOAL(x)
         POST:: Arm is holding x; !TABLE(x); !CLEAR(x); x above == null
         '''
+        action = ""
         if(self.current_state["Arm"].get_held() == False):
             stack = self.current_state["Table"].get_stack(li)
             block = stack.pop
@@ -154,16 +156,15 @@ class Solver:
             block.above = []
             # Give to arm
             self.current_state["Arm"].grab(block)
-        else:
-            flag = 1
-        return flag
+            action = "Pi(" + block.label + ", " + self.get_stack_name(li) + ")"
+        return action
 
     def putdown(self, li):
-        flag = 0 # 0 on success, 1 on failure
         '''
         PRE:: Arm is holding x; No blocks at location; Arm at location
         POST:: CLEAR(x); TABLE(x); Arm is empty
         '''
+        action = ""
         block = self.current_state["Arm"].get_held()
         if(block != False): 
             stack = self.current_state["Table"].get_stack(li)
@@ -172,20 +173,19 @@ class Solver:
             block.table = True
             self.current_state["Arm"].let_go()
             stack.append(block)
-
-        return flag
+            action = "Pu(" + block.label + ", " + self.get_stack_name(li) + ")"
+        return action
 
     def move(self, li, lk):
-        flag = 0 # 0 on success, 1 on failure
         '''
         PRE:: Arm is at li
         POST:: Arm is at lk
         '''
+        action = ""
         if(self.current_state["Arm"].get_location() == li and lk > 0 and lk < 4):
             self.current_state["Arm"].move(lk)
-        else:
-            flag = 1
-        return flag
+            action = "M(" + str(li) + ", " + str(lk) + ")"
+        return action
 
     def noop(self):
         pass
@@ -214,3 +214,7 @@ class Solver:
             if not flag:
                 break
         return flag
+    
+    def get_stack_name(self, num : int):
+        if(num > 0 and num < 4):
+            return "L" + str(num)

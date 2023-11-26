@@ -60,3 +60,4 @@ class Table_State:
     def get_stack_number(self, num : int):
         return len(self.get_stack(num))
         
+        
