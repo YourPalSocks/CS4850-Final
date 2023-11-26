@@ -3,7 +3,7 @@
 
 class Block_State:
     # Relation info
-    #   above: List of blocks above this one
+    #   above: List of blocks this block is above
     #   on: The block this block directly sits on
     #   clear: Does this block have anything on top of it?
     #   table: Does this block sit directly on the table?
@@ -27,6 +27,18 @@ class Arm_State:
         self.holding = False # Holding nothing by default
         self.location = 1 # At location L1 by default
 
+    def let_go(self):
+        self.holding = False
+
+    def grab(self, block):
+        self.holding = block
+
+    def move(self, loc):
+        self.location = loc
+
+    def get_location(self):
+        return self.location
+
     def get_held(self):
         return self.holding
 
@@ -44,4 +56,7 @@ class Table_State:
             return self.L2
         else:
             return self.L3
+        
+    def get_stack_number(self, num : int):
+        return len(self.get_stack(num))
         

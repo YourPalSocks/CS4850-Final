@@ -25,13 +25,15 @@ class Solver:
         for blocks in init.split('-'):
             index = 0
             spot = 1
+            above_blocks = []
             for b in list(blocks): # Building bottom-up
                 # Fill out block properties
                 on = False
                 if(index != 0): # Not on table? Must be on top of something
                     on = temp_table["L" + str(spot)][index - 1]
-                block = Block_State(False, on, index == len(list(blocks)) - 1, index == 0, b) # Come back for above
+                block = Block_State(above_blocks, on, index == len(list(blocks)) - 1, index == 0, b) # Come back for above
                 temp_table["L" + str(spot)].append(block)
+                above_blocks.append(block)
                 index += 1
             spot += 1
 
@@ -94,42 +96,98 @@ class Solver:
             
 
     # Actions
-    def stack(li):
+    def stack(self, li):
+        flag = 0 # 0 on success, 1 on failure
         '''
         PRE:: Arm is holding x; CLEAR(y); y and x at same location
-        POST:: ON(x, y); CLEAR(y); ABOVE(x, y); ABOVE(x, y.above)
+        POST:: ON(x, y); CLEAR(x); !CLEAR(y); ABOVE(x, y); ABOVE(x, y.above)
         '''
-        pass
+        block = self.current_state["Arm"].get_held()
+        if(block != False): # Make sure arm is holding something
+            stack = self.current_state["Table"].get_stack(li)
+            self.current_state["Arm"].let_go()
+            # Adjust block properties
+            block.on = stack[len(stack) - 1]
+            block.above.append(stack[len(stack) - 1])
+            block.above.append(stack[len(stack) - 1].above)
+            block.clear = True
+            stack[len(stack) - 1].clear = False
+            stack.append(block) # Add block to top of stack
+        else:
+            flag = 1 # Something went wrong
+        return flag
 
-    def unstack(li):
+
+    def unstack(self, li):
+        flag = 0 # 0 on success, 1 on failure
         '''
         PRE:: Arm is empty; CLEAR(x); ON(x, y); !TABLE(x); !GOAL(x)
         POST:: Arm is holding x; !CLEAR(x); Nothing on x; x above == null
         '''
-        pass
+        if(self.current_state["Arm"].get_held() == False):
+            stack = self.current_state["Table"].get_stack(li)
+            block = stack.pop() # Remove block from stack
+            # Adjust block properties
+            block.clear = False
+            block.above = []
+            block.on = False
+            # Adjust new top block
+            stack[len(stack)].clear = True
+            # Give block to arm
+            self.current_state["Arm"].grab(block)
+        else:
+            flag = 1
+        return flag
 
-    def pickup(li):
+    def pickup(self, li):
+        flag = 0 # 0 on success, 1 on failure
         '''
         PRE:: Arm is empty; TABLE(x); CLEAR(x); !GOAL(x)
         POST:: Arm is holding x; !TABLE(x); !CLEAR(x); x above == null
         '''
-        pass
+        if(self.current_state["Arm"].get_held() == False):
+            stack = self.current_state["Table"].get_stack(li)
+            block = stack.pop
+            # Adjust block properties
+            block.table = False
+            block.clear = False
+            block.above = []
+            # Give to arm
+            self.current_state["Arm"].grab(block)
+        else:
+            flag = 1
+        return flag
 
-    def putdown(li):
+    def putdown(self, li):
+        flag = 0 # 0 on success, 1 on failure
         '''
         PRE:: Arm is holding x; No blocks at location; Arm at location
         POST:: CLEAR(x); TABLE(x); Arm is empty
         '''
-        pass
+        block = self.current_state["Arm"].get_held()
+        if(block != False): 
+            stack = self.current_state["Table"].get_stack(li)
+            # Adjust block properties
+            block.clear = True
+            block.table = True
+            self.current_state["Arm"].let_go()
+            stack.append(block)
 
-    def move(li, lk):
+        return flag
+
+    def move(self, li, lk):
+        flag = 0 # 0 on success, 1 on failure
         '''
         PRE:: Arm is at li
         POST:: Arm is at lk
         '''
-        pass
+        if(self.current_state["Arm"].get_location() == li and lk > 0 and lk < 4):
+            self.current_state["Arm"].move(lk)
+        else:
+            flag = 1
+        return flag
 
-    def noop():
+    def noop(self):
         pass
 
     # Helper functions
