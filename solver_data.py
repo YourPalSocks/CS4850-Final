@@ -7,17 +7,19 @@ class Block_State:
     #   on: The block this block directly sits on
     #   clear: Does this block have anything on top of it?
     #   table: Does this block sit directly on the table?
-    def __init__(self, above, on, clear : bool, table : bool, label : chr):
+    def __init__(self, above, clear : bool, table : bool, label : chr):
         self.above = above
-        self.on = on
         self.clear = clear
         self.table = table
         self.label = label
         self.at_goal = False # Is this block its desired goal state?
 
     def __eq__(self, other): # Overwrite to compare two blocks to each other
-        return(self.above == other.above and self.on == other.on and 
-           self.clear == other.clear and self.table == other.table and self.label == other.label)
+        # Account for other being null
+        if(not other):
+            return False
+        return(self.above == other.above and self.clear == other.clear 
+               and self.table == other.table and self.label == other.label)
     
 
 class Arm_State:
@@ -63,16 +65,19 @@ class Table_State:
 # Used to store actions FIFO order
 class Queue:
     def __init__(self):
-        self._items = []
+        self.__items = []
 
     def enqueue(self, item):
-        self._items.append(item)
+        self.__items.append(item)
 
     def dequeue(self):
-        return self._items.pop()
+        return self.__items.pop()
     
     def size(self):
-        return len(self._items)
+        return len(self.__items)
+    
+    def clear(self):
+        self.__items = []
     
 # Used to create graph of states to follow
 class Node:
@@ -83,17 +88,26 @@ class Node:
         self.viewed = False
 
     def __eq__(self, other):
-        return self.__data == other.__data
+        return self.__data == other.get_data()
     
     def get_data(self):
-        self.viewed = True
         return self.__data
-
-    def viewed(self):
-        return self.viewed
+    
+    def get_child(self, index):
+        return self.children[index]
     
     def add_child(self, child):
         self.children.append(child)
+        # Return index of added child
+        return len(self.children) - 1
+
+    # Get first unviewed child, -1 if all children viewed
+    # Does not consider this node in search
+    def get_unviewed_child(self):
+        for child in self.children:
+            if not child.viewed:
+                return child
+        return -1
     
 class StateTree:
     def __init__(self, data):
@@ -103,8 +117,11 @@ class StateTree:
         self.pointer_depth = 0
         self.goal_pointer = False # Which node is the goal state? For uptracing later
 
+    def is_root(self):
+        return self.pointer_depth == 0
+
     def add(self, n_data): # Add new node to pointer location
-        self.pointer.add_child(Node(n_data))
+        return self.pointer.add_child(Node(n_data, self.pointer))
     
     def move_pointer(self, loc : int):
         try:

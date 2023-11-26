@@ -1,14 +1,15 @@
+import os
 from tkinter import *
+from multiprocessing import Pool
 from block import Block
 from table import Table
 from claw import Claw
-from state_manager import State_Manager
+from solver import Solver
 from cmd_window import Cmd_Window
 
-state_man = State_Manager(0, 0, 0, 0)
 state = 1
-max_states = 1
-compute_time = 0.0
+states = []
+state_num = 0
 
 # Global components
 cmd_win = ""
@@ -17,6 +18,7 @@ blocks = {}
 claw = ""
 canvas = ""
 state_lab = ""
+in_progress = False
 
 def main():
     global cmd_win
@@ -32,13 +34,12 @@ def main():
     # Add component frames
     disp_frame = Frame(root) # Frame used for canvas and stats area
     disp_frame.pack(side=TOP)
-    state_lab = Label(root, borderwidth=2, text=f"{state}/{max_states}")
+    state_lab = Label(root, borderwidth=2, text=f"{state}/{len(states)}")
     state_lab.pack(side=TOP)
     # Add components
     canvas = Canvas(disp_frame, bg="white", height=300, width=600)
-    setup_canvas()
     canvas.pack()
-    stats = Label(disp_frame, borderwidth=2, text=f"# States: {max_states}\t\tTime: {compute_time}s")
+    stats = Label(disp_frame, borderwidth=2, text=f"# States: {len(states)}\t\tTime: {0.0}s")
     stats.pack()
     # Text area for information
     cmd_win = Cmd_Window(root)
@@ -51,6 +52,7 @@ def main():
                 lambda event, win=cmd_win, c_in=cmd_in:parse_command(win,c_in))
     cmd_win.log("Enter 'help' to view available commands")
 
+    setup_canvas()
     # Give focus to command area
     cmd_in.focus_set()
 
@@ -61,8 +63,8 @@ def setup_canvas():
     global tab
     global blocks
     global canvas
-    global state_man
     global claw
+    global cmd_win
 
     # Table object
     tab = Table()
@@ -77,11 +79,59 @@ def setup_canvas():
     tab.draw_table(canvas)
     for block in blocks:
         blocks[block].draw_block(canvas)
-    # Give to state manager
-    state_man = State_Manager(blocks, tab, claw, canvas)
+
+def create_initial_state(init):
+    global states
+    global state_num
+
+    # Set to first state
+    reset_states()
+    states.append(init)
+    # Create the first state on screen
+    create_state(0)
+    state_num += 1
+
+def create_final_state(fin):
+    global states
+    global state_num
+    
+    # Set to final state
+    states.append(fin)
+    state_num += 1
+
+# Draw a state to the GUI
+def create_state(state_num):
+    global tab
+    global blocks
+    global canvas
+    global claw
+    global cmd_win
+    global states
+
+    # Remove everything
+    canvas.delete('all')
+    tab.draw_table(canvas)
+    try:
+        cur_spot = 1
+        for spot in states[state_num].split('-'):
+            for block in list(spot):
+                pos = tab.get_table_position(cur_spot)
+                blocks.get(str(block)).move_block(pos[0], pos[1])
+                blocks.get(str(block)).draw_block(canvas)
+            cur_spot += 1
+            
+    except IndexError:
+        return 1 # State requested does not exist, send error signal
+    
+def reset_states():
+    global states
+
+    states = []
 
 def parse_command(win, c_in):
     global state
+    global in_progress
+    global state_num
 
     # Get command (and argument) from input, then clear it
     cmd = c_in.get('1.0', 'end-1c').replace('\n', '')
@@ -92,39 +142,68 @@ def parse_command(win, c_in):
     cmd = cmd.split(" ")[0]
     c_in.delete('1.0', END)
     # Add it to window before parsing
-    cmd_win.log(f"> {cmd}")
+    cmd_win.log(f"> {cmd} {arg}")
     # Process the command
     if cmd == "clear": # Clear command window and last run
-        state_man.reset_states()
+        if not in_progress: # Only clear state manager if not running
+            reset_states()
         win.do_clear()
     elif cmd == "next":
         state += 1
-        if state_man.create_state(state) == 1:
+        if create_state(state) == 1:
             cmd_win.log("ERROR: Requested state does not exist")
     elif cmd == "prev":
         state -= 1
-        if state_man.create_state(state) == 1:
+        if create_state(state) == 1:
             cmd_win.log("ERROR: Requested state does not exist")
     elif cmd == "initial":
         if(not arg):
             cmd_win.log("ERROR: intial state must be non-null")
             return
-        state_man.create_initial_state(arg)
+        create_initial_state(arg)
     elif cmd == "final":
         if(not arg):
             cmd_win.log("ERROR: final state must be non-null")
             return
-        state_man.create_final_state(arg)
+        create_final_state(arg)
     elif cmd == "run":
-        if(state_man.get_state_num() < 2):
+        if(state_num < 2):
             cmd_win.log("ERROR: initial and final states must be set before running")
             return
-        # TODO: Run the simulation
+        if(in_progress):
+            cmd_win.log("ERROR: Solver already running")
+            return
+        # Run and log the results
+        cmd_win.log("Starting...")
+        with Pool(processes=1) as pool:
+            in_progress = True
+            pool.apply_async(start_state_solver, args=(states[0], states[-1]), callback=resultReceived, error_callback=errorReceived)
+            pool.close()
+            pool.join()
     elif cmd == "help":
         cmd_win.do_help()
     else:
         cmd_win.log("ERROR: unknown command")
 
+def start_state_solver(init : str, fin : str):
+    # Set up the solver
+    solver = Solver(init, fin)
+    return solver.solve()
 
-if __name__ == "__main__":
+def resultReceived(result):
+    global in_progress
+
+    in_progress = False
+    print(result, flush=True)
+    cmd_win.log("DONE")
+
+def errorReceived(error):
+    global in_progress
+    global cmd_win
+
+    in_progress = False
+    print(error, flush=True)
+    cmd_win.log("Something went wrong :(")
+
+if __name__ == "__main__":   
     main()
