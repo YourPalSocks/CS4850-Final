@@ -7,8 +7,7 @@ class Block_State:
     #   on: The block this block directly sits on
     #   clear: Does this block have anything on top of it?
     #   table: Does this block sit directly on the table?
-    def __init__(self, above, clear : bool, table : bool, label : chr):
-        self.above = above
+    def __init__(self, clear : bool, table : bool, label : chr):
         self.clear = clear
         self.table = table
         self.label = label
@@ -19,19 +18,10 @@ class Block_State:
             return False
         # Check single properties
         if self.label != other.label or self.table != other.table \
-                or self.clear != other.clear  or len(self.above) != len(other.above):
-            return False
-        # Check above blocks
-        if self.above_as_string() != other.above_as_string():
+                or self.clear != other.clear:
             return False
         # All tests passed
         return True
-    
-    def above_as_string(self):
-        ret = ""
-        for block in self.above:
-            ret += block.label
-        return ret
 
 class Arm_State:
     def __init__(self):
@@ -79,6 +69,11 @@ class Table_State:
         if len(stack) == 0 and len(other) == 0:
             return True
         for i in range(0, len(stack)):
+            # Compare the blocks above this block
+            above_me = stack[i:len(stack)]
+            above_other = other[i:len(stack)]
+            if above_me != above_other:
+                return False
             if stack[i] != other[i]:
                 return False
         return True

@@ -11,10 +11,9 @@ class Solver:
     state_count = 0
     MAX_DEPTH = 2
 
-    # State format: <blocks in 1>-<blocks in 2>-<blocks in 3>
+    # State format: <blocks in 1>-<blocks in 2>-<blocks in 3>-<pos><claw block>
     initial_state = {}
     final_state = {}
-    unique_states = []
 
     def __init__(self, init : str, fin : str):
         # Add initial and final states
@@ -30,12 +29,10 @@ class Solver:
         spot = 1
         for blocks in state_str.split('-'):
             index = 0
-            above_blocks = []
             for b in list(blocks): # Building bottom-up
                 # Fill out block properties
-                block = Block_State(above_blocks, index == len(list(blocks)) - 1, index == 0, b) # Come back for above
+                block = Block_State(index == len(list(blocks)) - 1, index == 0, b) # Come back for above
                 temp_table["L" + str(spot)].append(block)
-                above_blocks.append(block)
                 index += 1
             spot += 1
 
@@ -71,7 +68,7 @@ class Solver:
             print("GOAL", flush=True)
             goal = self.initial_state
 
-        # Start searching -- Breadth
+        # Start searching -- Breadth method
         try:
             while st.depth <= self.MAX_DEPTH and found == False:
                 print("\nDepth: ", st.depth, flush=True)
@@ -87,12 +84,15 @@ class Solver:
                         action_info = action_queue.dequeue()
                         # Add action as child of node
                         new_node = Node(action_info[1], node)
-                        print(action_info[0], flush=True)
-                        st.add(new_node)
-                        if self.is_goal(new_node.get_data()):
-                            print("GOALLLL", flush=True)
-                            found = True
-                            goal = new_node
+                        # Only add if operation isn't inverse of this one
+                        if not self.compare_states(node.get_data(), action_info[1]):
+                            print(action_info[0], flush=True)
+                            st.add(new_node)
+                            # Check if this node is the goal
+                            if self.is_goal(new_node.get_data()):
+                                print("GOALLLL", flush=True)
+                                found = True
+                                goal = new_node
         except:
             print(traceback.format_exc(), flush=True)
 
@@ -126,16 +126,13 @@ class Solver:
         pos = state["Arm"].get_location()
         stack = state["Table"].get_stack(pos)
         action_str = ""
-        if self.can_stack(state): # PRECONDITIONS
-            state["Arm"].let_go()
-            action_str = "S(" + block.label + ", " + stack[-1].label + ", " + "L" + str(pos) + ")"
-            # Adjust block properties
-            block.above = stack[-1].above
-            block.above.append(stack[-1])
-            block.clear = True
-            stack[-1].clear = False
-            stack.append(block) # Add block to top of stack
-        # Build action string
+
+        state["Arm"].let_go()
+        action_str = "S(" + block.label + ", " + stack[-1].label + ", " + "L" + str(pos) + ")"
+        # Adjust block properties
+        block.clear = True
+        stack[-1].clear = False
+        stack.append(block) # Add block to top of stack
         return [action_str, state]
 
     def can_unstack(self, state):
@@ -152,16 +149,15 @@ class Solver:
         pos = state["Arm"].get_location()
         stack = state["Table"].get_stack(pos)
         action_str = ""
-        if self.can_unstack(state): # PRECONDITIONS
-            block = stack.pop() # Remove block from stack
-            action_str = "U(" + block.label + ", " + stack[-1].label + ", " + "L" + str(pos) + ")"
-            # Adjust block properties
-            block.clear = False
-            block.above = []
-            # Adjust new top block
-            stack[-1].clear = True
-            # Give block to arm
-            state["Arm"].grab(block)
+
+        block = stack.pop() # Remove block from stack
+        action_str = "U(" + block.label + ", " + stack[-1].label + ", " + "L" + str(pos) + ")"
+        # Adjust block properties
+        block.clear = False
+        # Adjust new top block
+        stack[-1].clear = True
+        # Give block to arm
+        state["Arm"].grab(block)
         return [action_str, state]
     
     def can_pickup(self, state):
@@ -178,15 +174,14 @@ class Solver:
         pos = state["Arm"].get_location()
         stack = state["Table"].get_stack(pos)
         action_str = ""
-        if self.can_pickup(state): # PRECONDITIONS
-            block = stack.pop()
-            action_str = "Pi(" + block.label + ", " + str(pos)  + ", " + "L" + str(pos) + ")"
-            # Adjust block properties
-            block.table = False
-            block.clear = False
-            block.above = []
-            # Give to arm
-            state["Arm"].grab(block)
+
+        block = stack.pop()
+        action_str = "Pi(" + block.label + ", " + str(pos)  + ", " + "L" + str(pos) + ")"
+        # Adjust block properties
+        block.table = False
+        block.clear = False
+        # Give to arm
+        state["Arm"].grab(block)
         return [action_str, state]
     
     def can_putdown(self, state):
@@ -205,13 +200,15 @@ class Solver:
         block = state["Arm"].get_held()
         stack = state["Table"].get_stack(pos)
         action_str = ""
-        if self.can_putdown(state): # PRECONDITIONS
-            action_str = "Pu(" + block.label + ", " + "L" + str(pos) + ")"
-            # Adjust block properties
-            block.clear = True
-            block.table = True
-            state["Arm"].let_go()
-            stack.append(block)
+        
+        action_str = "Pu(" + block.label + ", " + "L" + str(pos) + ")"
+        # Adjust block properties
+        block.clear = True
+        block.table = True
+        # Put on (empty) stack
+        stack.append(block)
+        # Make arm let go of held block
+        state["Arm"].let_go()
         return [action_str, state]
     
     def can_move(self, state, lk):
@@ -225,9 +222,9 @@ class Solver:
         '''
         state = deepcopy(s)
         action_str = ""
-        if self.can_move(state, lk): # PRECONDITIONS
-            action_str = "M(" + str(state["Arm"].get_location()) + ", " + str(lk) + ")"
-            state["Arm"].move(lk)
+
+        action_str = "M(" + str(state["Arm"].get_location()) + ", " + str(lk) + ")"
+        state["Arm"].move(lk)
         return [action_str, state]
 
     def noop(self):
@@ -238,13 +235,8 @@ class Solver:
         # Match every spot in the current state to the final state
         return self.final_state["Table"] == state["Table"] and state["Arm"].holding == False
     
-    def is_unique(self, other):
-        for state in self.unique_states:
-            if state["Table"] == other["Table"] and state["Arm"] == other["Arm"]:
-                return False
-        # If unique, add to unique states
-        self.unique_states.append(other)
-        return True
+    def compare_states(self, s1, s2):
+        return s1["Table"] == s2["Table"] and s1["Arm"] == s2["Arm"]
         
     # Get all possible actions of state and load into queue
     def get_all_actions(self, state, queue : Queue):
