@@ -294,12 +294,12 @@ class Solver:
     def state_to_string(self, state):
         # Convert each table to strings
         res = ""
-        for i in range(1,3):
+        for i in range(1,4):
             for block in state["Table"].get_stack(i):
                 res += block.label
             res += "-"
         # Convert arm to string
-        res += "-" + str(state["Arm"].get_location())
+        res += str(state["Arm"].get_location())
         if state["Arm"].get_held() != False:
             res += state["Arm"].get_held().label
         return res
