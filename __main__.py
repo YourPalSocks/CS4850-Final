@@ -18,12 +18,15 @@ blocks = {}
 claw = ""
 canvas = ""
 state_lab = ""
+stats = ""
 in_progress = False
+sim_results = 0
 
 def main():
     global cmd_win
     global canvas
     global state_lab
+    global stats
 
     root = Tk()
     root.title("CS4850 Final Project - Ethan Heinlein")
@@ -56,14 +59,17 @@ def main():
     # Give focus to command area
     cmd_in.focus_set()
 
-    # Star the main loop
+    # Start the main loop
     root.mainloop()
 
 def setup_canvas():
     global tab
     global blocks
     global claw
+    global canvas
 
+    # Delete everything from canvas
+    canvas.delete('all')
     # Table object
     tab = Table()
     # Blocks
@@ -98,33 +104,51 @@ def create_state(state_num):
     global canvas
     global claw
     global cmd_win
+    global state_lab
     global states
 
     # Remove everything
     canvas.delete('all')
+    tab.reset_table()
     tab.draw_table(canvas)
     try:
+        # Other gui info
+        state_lab.config(text=f"{state_num + 1}/{len(states)}")
         cur_spot = 1
         for spot in states[state_num].split('-'):
-            for block in list(spot):
-                pos = tab.get_table_position(cur_spot)
-                blocks.get(str(block)).move_block(pos[0], pos[1])
-                blocks.get(str(block)).draw_block(canvas)
-            cur_spot += 1
-            
+            # Draw table and blocks
+            if cur_spot <= 3:
+                for block in list(spot):
+                    pos = tab.get_table_position(cur_spot)
+                    blocks.get(str(block)).move_block(pos[0], pos[1])
+                    blocks.get(str(block)).draw_block(canvas)
+                cur_spot += 1
+            else: # Draw claw
+                info = list(spot) # 0 == Claw pos, 1 == Block
+                claw.move_claw(int(spot[0]))
+                if len(list(spot)) > 1: # Block held
+                    claw_pos = claw.get_block_spot()
+                    blocks.get(str(spot[1])).move_block(claw_pos[0], claw_pos[1])
+                    blocks.get(str(spot[1])).draw_block(canvas)
+        claw.draw_claw(canvas)
     except IndexError:
         return 1 # State requested does not exist, send error signal
     
 def reset_sim():
     global states
+    global sim_results
     
     setup_canvas()
+    sim_results = 0
     states = []
 
 def parse_command(win, c_in):
     global state
     global in_progress
     global state_num
+    global stats
+    global states
+    global state_lab
 
     # Get command (and argument) from input, then clear it
     cmd = c_in.get('1.0', 'end-1c').replace('\n', '')
@@ -142,12 +166,16 @@ def parse_command(win, c_in):
             reset_sim()
         win.do_clear()
     elif cmd == "next":
-        state += 1
-        if create_state(state) == 1:
+        if state + 1 <= state_num:
+            state += 1
+            create_state(state)
+        else:
             cmd_win.log("ERROR: Requested state does not exist")
     elif cmd == "prev":
-        state -= 1
-        if create_state(state) == 1:
+        if state - 1 >= 0:
+            state -= 1
+            create_state(state)
+        else:
             cmd_win.log("ERROR: Requested state does not exist")
     elif cmd == "initial":
         if(not arg):
@@ -173,6 +201,14 @@ def parse_command(win, c_in):
             pool.close()
             pool.join()
         cmd_win.log("Done")
+        # Change GUI elements with results
+        if sim_results != 0:
+            states = sim_results["State_Data"]
+            state_num = sim_results["States"]
+            stats.config(text=f"# States: {len(states)}\t\tTime: {sim_results["Time"]}s")
+            state_lab.config(text=f"1/{state_num + 1}")
+            state = 0
+
     elif cmd == "help":
         cmd_win.do_help()
     else:
@@ -185,10 +221,14 @@ def start_state_solver(init : str, fin : str):
 
 def resultReceived(result):
     global in_progress
+    global sim_results
 
     in_progress = False
     print(result, flush=True)
+    sim_results = result
+    # updateWithResults(result)
     return result
+
 
 def errorReceived(error):
     global in_progress

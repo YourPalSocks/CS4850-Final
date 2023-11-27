@@ -9,7 +9,7 @@ from multiprocessing import current_process
 # Relations: ABOVE, ON, CLEAR, TABLE
 class Solver:
     state_count = 0
-    MAX_DEPTH = 10000
+    MAX_DEPTH = 10000 # The number of layers to search before giving up
 
     # State format: <blocks in 1>-<blocks in 2>-<blocks in 3>-<pos><claw block>
     initial_state = {}
@@ -65,12 +65,11 @@ class Solver:
         # Check if first node is correct
         if self.is_goal(self.initial_state):
             found = True
-            print("GOAL", flush=True)
             goal = self.initial_state
 
         # Start searching -- Breadth method
         try:
-            while found == False:
+            while st.depth <= self.MAX_DEPTH and found == False:
                 print("\nDepth: ", st.depth, flush=True)
                 # Cycle through all nodes at level, then move down to new one
                 nodes = st.get_layer()
@@ -90,9 +89,8 @@ class Solver:
                             st.add(new_node)
                             # Check if this node is the goal
                             if self.is_goal(new_node.get_data()):
-                                print("GOAL", flush=True)
                                 found = True
-                                goal = new_node
+                                goal = deepcopy(new_node)
                         else:
                             # Add all possible actions from node
                             # Filter out moves that result in the same state as the node's parent
@@ -102,22 +100,33 @@ class Solver:
                                 st.add(new_node)
                                 # Check if this node is the goal
                                 if self.is_goal(new_node.get_data()):
-                                    print("GOAL", flush=True)
                                     found = True
-                                    goal = new_node
+                                    goal = deepcopy(new_node)
         except:
             print(traceback.format_exc(), flush=True)
 
         # Done
-        # TODO: Build up from node to root for state information
-        # TODO: Convert state to string for GUI
+        print("Done", flush=True)
+        goal_states = []
+        # Add final state to goal string
+        goal_states.insert(0, self.state_to_string(goal.get_data()))
+        goal_num = 0 # How many states to get to goal?
+        parent = goal.parent
+        # Build path up to root
+        while parent != 0:
+            gs = self.state_to_string(parent.get_data())
+            goal_states.insert(0, gs)
+            goal_num += 1
+            parent = deepcopy(parent.parent)
+
         # Get time of end
         end_time = time.time()
-        # Get final stats
+        # Get final stats as dictionary and return
         results = {}
         results["Found"] = found
-        results["Depth"] = st.depth
-        results["Time"] = abs(start_time - end_time) # Run time
+        results["States"] = goal_num
+        results["State_Data"] = goal_states
+        results["Time"] = round(abs(start_time - end_time), 2) # Run time
         return results
 
     # Actions
@@ -241,7 +250,7 @@ class Solver:
         state = deepcopy(s)
         action_str = ""
 
-        action_str = "M(" + str(state["Arm"].get_location()) + ", " + str(lk) + ")"
+        action_str = "M(" + "L" + str(state["Arm"].get_location()) + ", " + "L" + str(lk) + ")"
         state["Arm"].move(lk)
         return [action_str, state]
 
@@ -253,7 +262,6 @@ class Solver:
         # Match every spot in the current state to the final state
         return self.final_state["Table"] == state["Table"] and state["Arm"].holding == False
 
-    
     def compare_states(self, s1, s2):
         return s1["Table"] == s2["Table"] and s1["Arm"] == s2["Arm"]
         
@@ -284,5 +292,14 @@ class Solver:
         # print("Actions found: ", states_found, flush=True)
 
     def state_to_string(self, state):
-        # TODO: Convert state to something readable by __main__.py
-        return "Bababooey"
+        # Convert each table to strings
+        res = ""
+        for i in range(1,3):
+            for block in state["Table"].get_stack(i):
+                res += block.label
+            res += "-"
+        # Convert arm to string
+        res += "-" + str(state["Arm"].get_location())
+        if state["Arm"].get_held() != False:
+            res += state["Arm"].get_held().label
+        return res
