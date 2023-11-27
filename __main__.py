@@ -62,9 +62,7 @@ def main():
 def setup_canvas():
     global tab
     global blocks
-    global canvas
     global claw
-    global cmd_win
 
     # Table object
     tab = Table()
@@ -73,12 +71,6 @@ def setup_canvas():
         blocks.update({chr(c) : Block(25, 25, chr(c))})
     # Claw
     claw = Claw()
-    claw.draw_claw(canvas)
-
-    # Draw everything
-    tab.draw_table(canvas)
-    for block in blocks:
-        blocks[block].draw_block(canvas)
 
 def create_initial_state(init):
     global states

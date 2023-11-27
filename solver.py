@@ -9,7 +9,7 @@ from multiprocessing import current_process
 # Relations: ABOVE, ON, CLEAR, TABLE
 class Solver:
     state_count = 0
-    MAX_DEPTH = 2
+    MAX_DEPTH = 32
 
     # State format: <blocks in 1>-<blocks in 2>-<blocks in 3>-<pos><claw block>
     initial_state = {}
@@ -82,17 +82,31 @@ class Solver:
                     action_count = action_queue.size()
                     for i in range(action_count):
                         action_info = action_queue.dequeue()
-                        # Add action as child of node
-                        new_node = Node(action_info[1], node)
-                        # Only add if operation isn't inverse of this one
-                        if not self.compare_states(node.get_data(), action_info[1]):
+                        # Prevent direct inverse of operation from appearing as a child
+                        # Never filter root
+                        if node.parent == 0:
                             print(action_info[0], flush=True)
+                            new_node = Node(action_info[1], node)
                             st.add(new_node)
                             # Check if this node is the goal
                             if self.is_goal(new_node.get_data()):
-                                print("GOALLLL", flush=True)
+                                print("GOAL", flush=True)
                                 found = True
                                 goal = new_node
+                        else:
+                            # Add all possible actions from node
+                            # Filter out moves that result in the same state as the node's parent
+                            if not self.compare_states(node.parent.get_data(), action_info[1]):
+                                print(action_info[0], flush=True)
+                                new_node = Node(action_info[1], node)
+                                st.add(new_node)
+                                # Check if this node is the goal
+                                if self.is_goal(new_node.get_data()):
+                                    print("GOAL", flush=True)
+                                    found = True
+                                    goal = new_node
+                            else:
+                                print("Filtered: ", action_info[0], flush=True)
         except:
             print(traceback.format_exc(), flush=True)
 
@@ -127,6 +141,7 @@ class Solver:
         stack = state["Table"].get_stack(pos)
         action_str = ""
 
+        # Make arm let go
         state["Arm"].let_go()
         action_str = "S(" + block.label + ", " + stack[-1].label + ", " + "L" + str(pos) + ")"
         # Adjust block properties
