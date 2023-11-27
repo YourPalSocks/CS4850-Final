@@ -12,20 +12,36 @@ class Block_State:
         self.clear = clear
         self.table = table
         self.label = label
-        self.at_goal = False # Is this block its desired goal state?
 
     def __eq__(self, other): # Overwrite to compare two blocks to each other
         # Account for other being null
         if(not other):
             return False
-        return(self.above == other.above and self.clear == other.clear 
-               and self.table == other.table and self.label == other.label)
+        # Check single properties
+        if self.label != other.label or self.table != other.table \
+                or self.clear != other.clear  or len(self.above) != len(other.above):
+            return False
+        # Check above blocks
+        if self.above_as_string() != other.above_as_string():
+            return False
+        # All tests passed
+        return True
+    
+    def above_as_string(self):
+        ret = ""
+        for block in self.above:
+            ret += block.label
+        return ret
+        
     
 
 class Arm_State:
     def __init__(self):
         self.holding = False # Holding nothing by default
         self.location = 1 # At location L1 by default
+
+    def __eq__(self, other):
+        return self.holding == other.holding and self.location == other.location
 
     def let_go(self):
         self.holding = False
@@ -49,6 +65,25 @@ class Table_State:
         self.L1 = []
         self.L2 = []
         self.L3 = []
+
+    def __eq__(self, other):
+        res1 = self.__compare_stack(self.L1, other.L1)
+        res2 = self.__compare_stack(self.L2, other.L2)
+        res3 = self.__compare_stack(self.L3, other.L3)
+        if res1 and res2 and res3:
+            return True
+        return False
+
+    def __compare_stack(self, stack, other):
+        if len(stack) != len(other):
+            return False
+        # Check if both are empty
+        if len(stack) == 0 and len(other) == 0:
+            return True
+        for i in range(0, len(stack) - 1):
+            if stack[i] != other[i]:
+                return False
+        return True
 
     def get_stack(self, num : int):
         if num == 1:

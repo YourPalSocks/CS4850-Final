@@ -125,7 +125,6 @@ def create_state(state_num):
     
 def reset_states():
     global states
-
     states = []
 
 def parse_command(win, c_in):
@@ -174,12 +173,12 @@ def parse_command(win, c_in):
             cmd_win.log("ERROR: Solver already running")
             return
         # Run and log the results
-        cmd_win.log("Starting...")
         with Pool(processes=1) as pool:
             in_progress = True
             pool.apply_async(start_state_solver, args=(states[0], states[-1]), callback=resultReceived, error_callback=errorReceived)
             pool.close()
             pool.join()
+        cmd_win.log("Done")
     elif cmd == "help":
         cmd_win.do_help()
     else:
@@ -195,15 +194,14 @@ def resultReceived(result):
 
     in_progress = False
     print(result, flush=True)
-    cmd_win.log("DONE")
+    return result
 
 def errorReceived(error):
     global in_progress
-    global cmd_win
 
     in_progress = False
     print(error, flush=True)
-    cmd_win.log("Something went wrong :(")
+    return 1
 
 if __name__ == "__main__":   
     main()

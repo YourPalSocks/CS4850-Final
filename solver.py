@@ -61,53 +61,64 @@ class Solver:
         st = StateTree(self.initial_state)
         action_queue = Queue()
         first = True
-        while(action_queue.size() > 0 or first):
-            # Handle depth limit reached
+        can_loop = True
+        while (st.goal_pointer == False or first) and can_loop:
             first = False # Creating a do-while loop essentially
-            if st.depth >= self.MAX_DEPTH:
-                # Mark as true so can't be processed
-                st.pointer.viewed = True
-                # Keep moving up, finding unviewed sibling
-                found = -1
-                search_node = st.pointer
-                while found != -1:
+            # Check if current state is goal state
+            if self.is_goal(st.pointer.get_data()):
+                # Found the goal, stop
+                print("GOALLLL", flush=True)
+                st.goal_pointer = st.pointer
+                can_loop = False
+              
+            if can_loop:
+                # Handle depth limit reached
+                if st.depth >= self.MAX_DEPTH:
+                    # Mark this node as true so it can't be processed
+                    st.pointer.viewed = True
+                    # Keep moving up, finding unviewed sibling
                     found = -1
-                    if search_node.parent == 0 or search_node == 0: # Reached the root, stop searching
-                        break
-                    else:
-                        found = search_node.parent.get_unviewed_child()
-                        if found == -1:
-                            search_node = search_node.parent
-                        pass
-            # Get all actions of this state, if not done so already
-            if not st.pointer.viewed:
-                # Add all possible states
-                self.get_all_actions(st.pointer.get_data(), action_queue)
-                st.pointer.viewed = True
-                # Add each action to tree, check if goal
-                action_size = action_queue.size()
-                for i in range(0, action_size):
-                    action_info = action_queue.dequeue()
-                    action = action_info[1]
-                    print(action_info[0], flush=True)
-                    index = st.add(action) # Add new action to StateTree
-                    # Check if this is the goal
-                    if self.is_goal(action):
-                        # We have found the goal, assign accordingly and stop running
-                        st.goal_pointer = st.pointer.get_child(index)
-                        action_queue.clear()
-                        break
-            # Move to next node (try children of pointer, then sibling)
-            next = st.pointer.get_unviewed_child()
-            if next != -1: # Found, move to child
-                st.pointer = next
-                st.pointer_depth += 1
-                pass
-            else: # Failed, try sibling node
-                if st.pointer.parent != 0: # Exclude root node
-                    next = st.pointer.parent.get_unviewed_child()
-                    if next != -1: # Found a sibling to try
-                        st.pointer = next
+                    search_node = deepcopy(st.pointer)
+                    search_depth = st.depth
+                    while found != -1:
+                        found = -1
+                        if search_node.parent == 0 or search_node == 0: # Reached the root, stop searching
+                            can_loop = False
+                            break
+                        else:
+                            found = search_node.parent.get_unviewed_child()
+                            if found == -1:
+                                search_node = search_node.parent
+                                search_depth -= 1
+                    st.depth = search_depth
+                    st.pointer = search_node
+
+                # Get all actions of this state, if not done so already
+                if not st.pointer.viewed:
+                    # Add all possible states
+                    self.get_all_actions(st.pointer.get_data(), action_queue)
+                    st.pointer.viewed = True
+                    # Add each action to tree, check if goal
+                    action_size = action_queue.size()
+                    index = -1
+                    # Add all actions to this node (pointer)
+                    for i in range(0, action_size):
+                        action_info = action_queue.dequeue()
+                        action = action_info[1]
+                        print(action_info[0], flush=True)
+                        index = st.add(action) # Add new action to StateTree
+                        # Check if this is the goal
+                        if self.is_goal(action):
+                            # We have found the goal, assign accordingly and stop running
+                            st.goal_pointer = st.pointer.get_child(index)
+                            action_queue.clear()
+                            break
+                    # Move to first child created
+                    if index != -1:
+                        st.pointer = st.pointer.get_child(0)
+                        st.depth += 1
+            else: # Nothing left to try, escape loop
+                action_queue.clear()
         # Get time of end
         end_time = time.time()
         # Get final stats
@@ -242,13 +253,7 @@ class Solver:
     # Helper functions
     def is_goal(self, state):
         # Match every spot in the current state to the final state
-        for n_spot in range(1,4):
-            spot = state["Table"].get_stack(n_spot)
-            final_spot = self.final_state["Table"].get_stack(n_spot)
-            # Block_Data has an equal operator override
-            if(spot != final_spot):
-                return False
-        return True
+        return self.final_state["Table"] == state["Table"] and state["Arm"].holding == False
         
     # Get all possible actions of state and load into queue
     def get_all_actions(self, state, queue : Queue):
