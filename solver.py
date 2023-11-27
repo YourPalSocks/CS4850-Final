@@ -9,7 +9,7 @@ from multiprocessing import current_process
 # Relations: ABOVE, ON, CLEAR, TABLE
 class Solver:
     state_count = 0
-    MAX_DEPTH = 32
+    MAX_DEPTH = 10000
 
     # State format: <blocks in 1>-<blocks in 2>-<blocks in 3>-<pos><claw block>
     initial_state = {}
@@ -31,7 +31,7 @@ class Solver:
             index = 0
             for b in list(blocks): # Building bottom-up
                 # Fill out block properties
-                block = Block_State(index == len(list(blocks)) - 1, index == 0, b) # Come back for above
+                block = Block_State(index == len(list(blocks)) - 1, index == 0, b)
                 temp_table["L" + str(spot)].append(block)
                 index += 1
             spot += 1
@@ -70,7 +70,7 @@ class Solver:
 
         # Start searching -- Breadth method
         try:
-            while st.depth <= self.MAX_DEPTH and found == False:
+            while found == False:
                 print("\nDepth: ", st.depth, flush=True)
                 # Cycle through all nodes at level, then move down to new one
                 nodes = st.get_layer()
@@ -105,8 +105,6 @@ class Solver:
                                     print("GOAL", flush=True)
                                     found = True
                                     goal = new_node
-                            else:
-                                print("Filtered: ", action_info[0], flush=True)
         except:
             print(traceback.format_exc(), flush=True)
 
@@ -118,6 +116,7 @@ class Solver:
         # Get final stats
         results = {}
         results["Found"] = found
+        results["Depth"] = st.depth
         results["Time"] = abs(start_time - end_time) # Run time
         return results
 
@@ -153,6 +152,8 @@ class Solver:
     def can_unstack(self, state):
         pos = state["Arm"].get_location()
         stack = state["Table"].get_stack(pos)
+        if len(stack) == 0:
+            return False
         return state["Arm"].get_held() == False and not stack[-1].table
 
     def unstack(self, s):
@@ -178,6 +179,8 @@ class Solver:
     def can_pickup(self, state):
         pos = state["Arm"].get_location()
         stack = state["Table"].get_stack(pos)
+        if len(stack) != 1:
+            return False
         return (state["Arm"].get_held() == False and stack[-1].clear and stack[-1].table)
 
     def pickup(self, s):
@@ -191,7 +194,7 @@ class Solver:
         action_str = ""
 
         block = stack.pop()
-        action_str = "Pi(" + block.label + ", " + str(pos)  + ", " + "L" + str(pos) + ")"
+        action_str = "Pi(" + block.label  + ", " + "L" + str(pos) + ")"
         # Adjust block properties
         block.table = False
         block.clear = False
@@ -228,11 +231,11 @@ class Solver:
     
     def can_move(self, state, lk):
         pos = state["Arm"].get_location()
-        return lk > 0 and lk < 4 and pos != lk and state["Arm"].get_held() != False
+        return lk > 0 and lk < 4 and pos != lk
 
     def move(self, s, lk):
         '''
-        PRE:: Arm is at li ; Arm is holding something; Arm is not at lk
+        PRE:: Arm is at li ; Arm is not at lk
         POST:: Arm is at lk
         '''
         state = deepcopy(s)
@@ -249,6 +252,7 @@ class Solver:
     def is_goal(self, state):
         # Match every spot in the current state to the final state
         return self.final_state["Table"] == state["Table"] and state["Arm"].holding == False
+
     
     def compare_states(self, s1, s2):
         return s1["Table"] == s2["Table"] and s1["Arm"] == s2["Arm"]

@@ -77,7 +77,7 @@ def create_initial_state(init):
     global state_num
 
     # Set to first state
-    reset_states()
+    reset_sim()
     states.append(init)
     # Create the first state on screen
     create_state(0)
@@ -115,8 +115,10 @@ def create_state(state_num):
     except IndexError:
         return 1 # State requested does not exist, send error signal
     
-def reset_states():
+def reset_sim():
     global states
+    
+    setup_canvas()
     states = []
 
 def parse_command(win, c_in):
@@ -137,7 +139,7 @@ def parse_command(win, c_in):
     # Process the command
     if cmd == "clear": # Clear command window and last run
         if not in_progress: # Only clear state manager if not running
-            reset_states()
+            reset_sim()
         win.do_clear()
     elif cmd == "next":
         state += 1
