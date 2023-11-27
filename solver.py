@@ -13,6 +13,7 @@ class Solver:
     # State format: <blocks in 1>-<blocks in 2>-<blocks in 3>
     initial_state = {}
     final_state = {}
+    unique_states = []
 
     def __init__(self, init : str, fin : str):
         # Add initial and final states
@@ -65,7 +66,7 @@ class Solver:
         while (st.goal_pointer == False or first) and can_loop:
             first = False # Creating a do-while loop essentially
             # Check if current state is goal state
-            if self.is_goal(st.pointer.get_data()):
+            if can_loop and self.is_goal(st.pointer.get_data()):
                 # Found the goal, stop
                 print("GOALLLL", flush=True)
                 st.goal_pointer = st.pointer
@@ -76,22 +77,27 @@ class Solver:
                 if st.depth >= self.MAX_DEPTH:
                     # Mark this node as true so it can't be processed
                     st.pointer.viewed = True
-                    # Keep moving up, finding unviewed sibling
-                    found = -1
+                    search = True
+                    # Create clone of pointer to move around
                     search_node = deepcopy(st.pointer)
                     search_depth = st.depth
-                    while found != -1:
-                        found = -1
-                        if search_node.parent == 0 or search_node == 0: # Reached the root, stop searching
+                    # Keep moving up, finding unviewed sibling
+                    while search:
+                        print("Searching...", flush=True)
+                        if search_node.parent == 0 or search_node == -1: # Reached the root, stop searching
+                            search = False
                             can_loop = False
-                            break
                         else:
                             found = search_node.parent.get_unviewed_child()
-                            if found == -1:
+                            if found == -1: # Nothing found, move up
                                 search_node = search_node.parent
                                 search_depth -= 1
+                            else: # Found something, stop
+                                search = False
+                                search_node = found
+                    # Copy found information over to the pointer
                     st.depth = search_depth
-                    st.pointer = search_node
+                    st.pointer = deepcopy(search_node)
 
                 # Get all actions of this state, if not done so already
                 if not st.pointer.viewed:
@@ -101,29 +107,46 @@ class Solver:
                     # Add each action to tree, check if goal
                     action_size = action_queue.size()
                     index = -1
-                    # Add all actions to this node (pointer)
+                    # Add all possible actions to this node (pointer)
                     for i in range(0, action_size):
                         action_info = action_queue.dequeue()
                         action = action_info[1]
-                        print(action_info[0], flush=True)
-                        index = st.add(action) # Add new action to StateTree
-                        # Check if this is the goal
-                        if self.is_goal(action):
-                            # We have found the goal, assign accordingly and stop running
-                            st.goal_pointer = st.pointer.get_child(index)
-                            action_queue.clear()
-                            break
+                        # Add new action to StateTree, if its unique
+                        if self.is_unique(action):
+                            print(action_info[0], flush=True)
+                            index = st.add(action) 
                     # Move to first child created
                     if index != -1:
-                        st.pointer = st.pointer.get_child(0)
+                        st.move_pointer(0)
                         st.depth += 1
-            else: # Nothing left to try, escape loop
-                action_queue.clear()
+                else: # No children to check, but not at depth limit
+                    search = True
+                    # Create clone of pointer to move around
+                    search_node = deepcopy(st.pointer)
+                    search_depth = st.depth
+                    # Keep moving up, finding unviewed sibling
+                    while search:
+                        print("Searching...", flush=True)
+                        if search_node.parent == 0 or search_node == -1: # Reached the root, stop searching
+                            search = False
+                            can_loop = False # Nothing left to check
+                        else:
+                            found = search_node.parent.get_unviewed_child()
+                            if found == -1: # Nothing found, move up
+                                search_node = search_node.parent
+                                search_depth -= 1
+                            else: # Found something, stop
+                                search = False
+                                search_node = found
+                    # Copy found information over to the pointer
+                    st.depth = search_depth
+                    st.pointer = deepcopy(search_node)
         # Get time of end
         end_time = time.time()
         # Get final stats
         results = {}
         results["Time"] = abs(start_time - end_time) # Run time
+        results["Found"] = st.goal_pointer != False
         return results
 
     # Actions
@@ -254,6 +277,14 @@ class Solver:
     def is_goal(self, state):
         # Match every spot in the current state to the final state
         return self.final_state["Table"] == state["Table"] and state["Arm"].holding == False
+    
+    def is_unique(self, other):
+        for state in self.unique_states:
+            if state["Table"] == other["Table"] and state["Arm"] == other["Arm"]:
+                return False
+        # If unique, add to unique states
+        self.unique_states.append(other)
+        return True
         
     # Get all possible actions of state and load into queue
     def get_all_actions(self, state, queue : Queue):

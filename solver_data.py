@@ -118,9 +118,6 @@ class Node:
         self.parent = parent
         self.children = []
         self.viewed = False
-
-    def __eq__(self, other):
-        return self.__data == other.get_data()
     
     def get_data(self):
         return self.__data
@@ -135,10 +132,13 @@ class Node:
 
     # Get first unviewed child, -1 if all children viewed
     # Does not consider this node in search
-    def get_unviewed_child(self):
-        for child in self.children:
-            if not child.viewed:
-                return child
+    def get_unviewed_child(self, indexFlag=False):
+        for i in range(0, len(self.children) - 1):
+            if not self.children[i].viewed:
+                if indexFlag:
+                    return i
+                else:
+                    return self.children[i]
         return -1
     
 class StateTree:
@@ -154,3 +154,11 @@ class StateTree:
 
     def add(self, n_data): # Add new node to pointer location
         return self.pointer.add_child(Node(n_data, self.pointer))
+    
+    def move_pointer(self, loc, siblingFlag = False):
+        if loc == -1:
+            self.pointer = self.pointer.parent
+        elif siblingFlag:
+            self.pointer = self.pointer.parent.get_child(loc)
+        else:
+            self.pointer = self.pointer.get_child(loc)
