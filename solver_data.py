@@ -32,8 +32,6 @@ class Block_State:
         for block in self.above:
             ret += block.label
         return ret
-        
-    
 
 class Arm_State:
     def __init__(self):
@@ -80,7 +78,7 @@ class Table_State:
         # Check if both are empty
         if len(stack) == 0 and len(other) == 0:
             return True
-        for i in range(0, len(stack) - 1):
+        for i in range(0, len(stack)):
             if stack[i] != other[i]:
                 return False
         return True
@@ -115,50 +113,33 @@ class Queue:
 class Node:
     def __init__(self, data, parent):
         self.__data = data
-        self.parent = parent
-        self.children = []
         self.viewed = False
+        self.parent = parent
+        self.goal = False # Is this the goal node
     
     def get_data(self):
         return self.__data
-    
-    def get_child(self, index):
-        return self.children[index]
-    
-    def add_child(self, child):
-        self.children.append(child)
-        # Return index of added child
-        return len(self.children) - 1
-
-    # Get first unviewed child, -1 if all children viewed
-    # Does not consider this node in search
-    def get_unviewed_child(self, indexFlag=False):
-        for i in range(0, len(self.children) - 1):
-            if not self.children[i].viewed:
-                if indexFlag:
-                    return i
-                else:
-                    return self.children[i]
-        return -1
     
 class StateTree:
     def __init__(self, data):
         # Create root of tree, move pointer to root
         self.root = Node(data, 0)
-        self.pointer = self.root
-        self.depth = 0
-        self.goal_pointer = False # Which node is the goal state? For uptracing later
+        self.layers = {
+            0 : [self.root]
+        }
+        self.num_layers = 0
+        self.goal_index = 0
+        self.depth = 0 # current depth
 
     def is_root(self):
         return self.depth == 0
-
-    def add(self, n_data): # Add new node to pointer location
-        return self.pointer.add_child(Node(n_data, self.pointer))
     
-    def move_pointer(self, loc, siblingFlag = False):
-        if loc == -1:
-            self.pointer = self.pointer.parent
-        elif siblingFlag:
-            self.pointer = self.pointer.parent.get_child(loc)
-        else:
-            self.pointer = self.pointer.get_child(loc)
+    def get_layer(self):
+        return self.layers[self.depth]
+
+    def add(self, node): # Add node to this layer
+        self.layers[self.depth].append(node)
+    
+    def down_layer(self):
+        self.depth += 1
+        self.layers[self.depth] = []
