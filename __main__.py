@@ -137,10 +137,14 @@ def create_state(state_num):
 def reset_sim():
     global states
     global sim_results
+    global stats
+    global state_lab
     
     setup_canvas()
     sim_results = 0
     states = []
+    stats.config(text=f"# States: 0\t\tTime: 0s")
+    state_lab.config(text=f"1/{0}")
 
 def parse_command(win, c_in):
     global state

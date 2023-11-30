@@ -106,10 +106,11 @@ class Queue:
     
 # Used to create graph of states to follow
 class Node:
-    def __init__(self, data, parent):
+    def __init__(self, data, action_des : str, parent):
         self.__data = data
         self.viewed = False
         self.parent = parent
+        self.action = action_des
         self.goal = False # Is this the goal node
     
     def get_data(self):
@@ -118,7 +119,7 @@ class Node:
 class StateTree:
     def __init__(self, data):
         # Create root of tree, move pointer to root
-        self.root = Node(data, 0)
+        self.root = Node(data, "", 0)
         self.layers = {
             0 : [self.root]
         }

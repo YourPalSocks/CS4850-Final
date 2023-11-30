@@ -9,7 +9,7 @@ from multiprocessing import current_process
 # Relations: ABOVE, ON, CLEAR, TABLE
 class Solver:
     state_count = 0
-    MAX_DEPTH = 10000 # The number of layers to search before giving up
+    MAX_DEPTH = 2000 # The number of layers to search before giving up
 
     # State format: <blocks in 1>-<blocks in 2>-<blocks in 3>-<pos><claw block>
     initial_state = {}
@@ -85,7 +85,7 @@ class Solver:
                         # Never filter root
                         if node.parent == 0:
                             print(action_info[0], flush=True)
-                            new_node = Node(action_info[1], node)
+                            new_node = Node(action_info[1], action_info[0], node)
                             st.add(new_node)
                             # Check if this node is the goal
                             if self.is_goal(new_node.get_data()):
@@ -95,8 +95,11 @@ class Solver:
                             # Add all possible actions from node
                             # Filter out moves that result in the same state as the node's parent
                             if not self.compare_states(node.parent.get_data(), action_info[1]):
+                                # Also filter out movement if we just moved
+                                if action_info[0].find("M(") != -1 and node.action.find("M(") != -1:
+                                    continue
                                 print(action_info[0], flush=True)
-                                new_node = Node(action_info[1], node)
+                                new_node = Node(action_info[1], action_info[0], node)
                                 st.add(new_node)
                                 # Check if this node is the goal
                                 if self.is_goal(new_node.get_data()):
