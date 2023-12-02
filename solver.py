@@ -14,6 +14,7 @@ class Solver:
     # State format: <blocks in 1>-<blocks in 2>-<blocks in 3>-<pos><claw block>
     initial_state = {}
     final_state = {}
+    unique_states = []
 
     def __init__(self, init : str, fin : str):
         # Add initial and final states
@@ -87,6 +88,7 @@ class Solver:
                             print(action_info[0], flush=True)
                             new_node = Node(action_info[1], action_info[0], node)
                             st.add(new_node)
+                            self.unique_states.append(action_info[1])
                             # Check if this node is the goal
                             if self.is_goal(new_node.get_data()):
                                 found = True
@@ -100,11 +102,20 @@ class Solver:
                                     continue
                                 print(action_info[0], flush=True)
                                 new_node = Node(action_info[1], action_info[0], node)
-                                st.add(new_node)
-                                # Check if this node is the goal
-                                if self.is_goal(new_node.get_data()):
-                                    found = True
-                                    goal = deepcopy(new_node)
+                                # Also filter out non-unique moves
+                                uniqueFlag = False
+                                # Filter out non-unique states
+                                for state in self.unique_states:
+                                    if self.compare_states(action_info[1], state):
+                                        uniqueFlag = True
+                                        break
+                                if uniqueFlag == False:
+                                    st.add(new_node)
+                                    self.unique_states.append(action_info[1])
+                                    # Check if this node is the goal
+                                    if self.is_goal(new_node.get_data()):
+                                        found = True
+                                        goal = deepcopy(new_node)
         except:
             print(traceback.format_exc(), flush=True)
 
